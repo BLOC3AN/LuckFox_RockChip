@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--exe", required=True, help="Path to compiled executable")
     parser.add_argument("--model", required=True, help="Path to RKNN model")
     parser.add_argument("--image", required=True, help="Path to input image")
-    parser.add_argument("--remote_dir", default="/userdata/rknn_demo", help="Remote directory on board")
+    parser.add_argument("--remote_dir", default="/root/rknn_demo", help="Remote directory on board")
     
     args = parser.parse_args()
     
@@ -48,6 +48,15 @@ def main():
         print(f"Device {args.device} not found!")
         return
 
+    # Check Disk Space
+    print("Checking disk space...")
+    output = run_adb(["shell", "df -h"], args.device)
+    print(output)
+
+    # Clean remote directory
+    print(f"Cleaning {args.remote_dir}...")
+    run_adb(["shell", f"rm -rf {args.remote_dir}"], args.device)
+
     # Create remote directory
     run_adb(["shell", f"mkdir -p {args.remote_dir}"], args.device)
     
@@ -64,13 +73,24 @@ def main():
     res = run_adb(["push", args.model, f"{args.remote_dir}/{model_name}"], args.device)
     
     res = run_adb(["push", args.image, f"{args.remote_dir}/{image_name}"], args.device)
+
+    # Push lib
+    lib_path = os.path.join(os.path.dirname(args.exe), "lib", "librknnmrt.so")
+    if os.path.exists(lib_path):
+        print(f"Pushing library from {lib_path}...")
+        run_adb(["shell", f"mkdir -p {args.remote_dir}/lib"], args.device)
+        run_adb(["push", lib_path, f"{args.remote_dir}/lib/librknnmrt.so"], args.device)
+        ld_preload = f"export LD_LIBRARY_PATH={args.remote_dir}/lib:$LD_LIBRARY_PATH &&"
+    else:
+        print("Warning: local librknnmrt.so not found, using system default.")
+        ld_preload = ""
     
     # chmod
     run_adb(["shell", f"chmod +x {args.remote_dir}/{exe_name}"], args.device)
     
     # Run
     print("Running inference...")
-    cmd = f"cd {args.remote_dir} && ./{exe_name} ./{model_name} ./{image_name}"
+    cmd = f"cd {args.remote_dir} && {ld_preload} ./{exe_name} ./{model_name} ./{image_name}"
     output = run_adb(["shell", cmd], args.device)
     print("Output:")
     print(output)
