@@ -9,4 +9,4 @@ services:
     working_dir: /app
     command: python3 convert.py
     env_file:
-      - .env
+      - ../.env
