@@ -1,0 +1,12 @@
+services:
+  rknn-converter:
+    image: firesh/rknn-toolkit2:latest
+    container_name: rknn_converter_rv1106
+    volumes:
+      - ../models:/home/ubuntu/data/rockchip/RV_1106/models
+      - ../dataset:/home/ubuntu/data/rockchip/RV_1106/dataset
+      - ./convert.py:/app/convert.py
+    working_dir: /app
+    command: python3 convert.py
+    env_file:
+      - .env
